@@ -1,0 +1,46 @@
+body {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    margin: 0;
+    background-color: #f0f0f0;
+}
+
+.grid-container {
+    display: grid;
+    grid-template-columns: repeat(10, 10px); /* 10 columns, each 50px wide */
+    grid-template-rows: repeat(20, 10px);    /* 20 rows, each 50px tall */
+    gap: 1px; /* Optional: gap between grid items */
+}
+
+.next-tetromino-grid-container {
+    display: grid;
+    grid-template-columns: repeat(4, 10px); /* 10 columns, each 50px wide */
+    grid-template-rows: repeat(2, 10px);    /* 20 rows, each 50px tall */
+    gap: 1px; /* Optional: gap between grid items */
+    margin: 10px;
+}
+
+.grid-item {
+    width: 10px;
+    height: 10px;
+    background-color: gray; /* Example color */
+    /*border: 1px solid #ccc;*/    /* Example border */
+}
+
+
+.score-container p {
+    font-family: 'Consolas';
+    font-size: 16px;
+    color: #333;
+    margin-right: 20px;
+}
+
+.score-text {
+    margin-bottom: 5px;
+}
+
+.score-number {
+    margin-top: 5px;
+}
