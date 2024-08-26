@@ -6,7 +6,8 @@ var gameGrid = null
 const cellBackgroundColor = 'gray'
 const numberOfTetrominos = 7
 const numberOfColors = 7
-var fallDelta = 500
+var fallDelta = 200
+var greyColorIndex = 0;
 
 // data describing the tetrominos
 const ITetrominoData = Object.freeze({
@@ -70,14 +71,16 @@ const ZTetrominoData = Object.freeze({
     offset: [1,1],
 })
 
+
 const Colors = Object.freeze({
-    0: 'red',
+    greyColorIndex: 'grey',
     1: 'blue',
     2: 'yellow',
     3: 'green',
     4: 'pink',
     5: 'purple',
     6: 'orange',
+    7: 'red',
 });
 
 const TetrominoData = Object.freeze({
@@ -105,15 +108,15 @@ class GameGrid {
         this.gridContainer = document.querySelector('.grid-container');
         this.width = window.getComputedStyle(this.gridContainer).gridTemplateColumns.split(' ').length;
         this.height = window.getComputedStyle(this.gridContainer).gridTemplateRows.split(' ').length;
-        this.cells = Array(this.height * this.width).fill(false);
+        this.cells = Array(this.height * this.width).fill(greyColorIndex); 
     }
 
-    fillCell(x, y) {
-        this.cells[x + y * this.width] = true;
+    fillCell(x, y, colorIndex) {
+        this.cells[x + y * this.width] = colorIndex;
     }
 
     emptyCell(x, y) {
-        this.cells[x + y * this.width] = false;
+        this.cells[x + y * this.width] = greyColorIndex;
     }
 
     checkCollision(x, y) {
@@ -130,7 +133,7 @@ class GameGrid {
 
     isRowFull(rowIndex) {
         const rowCells = this.cells.slice(rowIndex * this.width, (rowIndex + 1) * this.width);
-        return rowCells.every(x => x === true);
+        return rowCells.every(x => x != greyColorIndex);
     }
 
     removeRows(rows){
@@ -142,17 +145,27 @@ class GameGrid {
     }
 
     removeRow(rowIndex){
-        this.cells.slice(0, rowIndex * this.width)
+        if(rowIndex != 0){
+            var start = this.width;
+            var nToReplace = rowIndex * this.width;
+            var replaceWith = this.cells.slice(0, nToReplace);
+            this.cells.splice(
+                start, 
+                nToReplace,
+                ...replaceWith
+            )
+        }
+        this.cells.fill(false, rowIndex, this.width)
     }
 }
 
 class TetrominoContainer {
-    constructor(tetrominoId, x, y, color) {
+    constructor(tetrominoId, x, y, colorIndex) {
         this.tetrominoData = TetrominoData[tetrominoId];
         const offset = this.tetrominoData.offset;
         this.x = x - offset[0];
         this.y = y - offset[1]; 
-        this.color = color;
+        this.colorIndex = colorIndex;
         this.rotation = 0;
     }
 
@@ -176,13 +189,13 @@ function getRandomTetromino() {
     return Math.floor(Math.random() * numberOfTetrominos);
 }
 
-function getRandomColor() {
-    return Colors[Math.floor(Math.random() * numberOfColors)];
+function getRandomColorIndex() {
+    return Math.floor(Math.random() * numberOfColors) + 1;
 }
 
 function init() {
     // the objects that define the state of the grid
-    activeTetrominoContainer = new TetrominoContainer(getRandomTetromino(), 5, 0, getRandomColor());
+    activeTetrominoContainer = new TetrominoContainer(getRandomTetromino(), 5, 0, getRandomColorIndex());
     gameGrid = new GameGrid();
 
     // make the grid reflect the initial conditions
@@ -215,8 +228,8 @@ function init() {
 function drawTetrominoContainer(grid, tetrominoContainer) {
     const gridDom = grid.gridContainer;
     for(let pos of tetrominoContainer.yieldAbsoluteCellPositions()){
-        const color = tetrominoContainer.color;
-        drawCell(pos[0], pos[1], gridDom, color);
+        const color = Colors[tetrominoContainer.colorIndex];
+        drawCell(...pos, gridDom, color);
     }
 }
 
@@ -224,7 +237,7 @@ function undrawTetrominoContainer(grid, tetrominoContainer) {
     const gridDom = grid.gridContainer;
     for(let pos of tetrominoContainer.yieldAbsoluteCellPositions()){
         const color = 'grey';
-        drawCell(pos[0], pos[1], gridDom, color);
+        drawCell(...pos, gridDom, color);
     }
 }
 
@@ -246,7 +259,7 @@ function drawCell(x, y, grid, color){
 
 function hasCollision(tetrominoContainer, gameGrid){
     for(let pos of tetrominoContainer.yieldAbsoluteCellPositions()){
-        if(gameGrid.checkCollision(pos[0], pos[1])) {
+        if(gameGrid.checkCollision(...pos)) {
             return true
         }
     }
@@ -260,7 +273,7 @@ function fall(){
         fillGridCellsWithTetromino(activeTetrominoContainer, gameGrid)
         checkFullRows(activeTetrominoContainer, gameGrid)
         // check for end game
-        activeTetrominoContainer = new TetrominoContainer(getRandomTetromino(), 5, 0, getRandomColor())
+        activeTetrominoContainer = new TetrominoContainer(getRandomTetromino(), 5, 0, getRandomColorIndex())
     } else {
         activeTetrominoContainer.y -= 1
         undrawTetrominoContainer(gameGrid, activeTetrominoContainer)
@@ -274,12 +287,12 @@ function checkFullRows(activeTetrominoContainer, gameGrid){
     for(let cell of activeTetrominoContainer.yieldAbsoluteCellPositions()){
         let row = cell[1]
         if(gameGrid.isRowFull(row)){
-            filledRows.appendChild(row)
+            filledRows.push(row)
         }
     }
     gameGrid.removeRows(filledRows)
 }
-
+ 
 function xMove(delta){
     activeTetrominoContainer.x += delta
     if(hasCollision(activeTetrominoContainer, gameGrid)){
@@ -306,7 +319,7 @@ function rotate(){
 
 function fillGridCellsWithTetromino(tetrominoContainer, gameGrid){
     for(let pos of tetrominoContainer.yieldAbsoluteCellPositions()){
-        gameGrid.fillCell(pos[0], pos[1])
+        gameGrid.fillCell(...pos, tetrominoContainer.colorIndex)
     }
 }
 
