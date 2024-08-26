@@ -73,7 +73,7 @@ const ZTetrominoData = Object.freeze({
 
 
 const Colors = Object.freeze({
-    greyColorIndex: 'grey',
+    0: 'grey',
     1: 'blue',
     2: 'yellow',
     3: 'green',
@@ -157,7 +157,15 @@ class GameGrid {
         }
         this.cells.fill(false, rowIndex, this.width)
     }
+
+    drawGrid(){
+        const domCells = Array.from(this.gridContainer.querySelectorAll('.grid-item'));
+        for(let i=0; i < this.cells.length; i++){
+            domCells[i].style.backgroundColor = Colors[this.cells[i]];
+        }
+    }
 }
+
 
 class TetrominoContainer {
     constructor(tetrominoId, x, y, colorIndex) {
@@ -290,7 +298,10 @@ function checkFullRows(activeTetrominoContainer, gameGrid){
             filledRows.push(row)
         }
     }
-    gameGrid.removeRows(filledRows)
+    if(filledRows.length > 0){
+        gameGrid.removeRows(filledRows)
+        gameGrid.drawGrid()
+    }
 }
  
 function xMove(delta){
