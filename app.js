@@ -105,23 +105,44 @@ class GameGrid {
         this.gridContainer = document.querySelector('.grid-container');
         this.width = window.getComputedStyle(this.gridContainer).gridTemplateColumns.split(' ').length;
         this.height = window.getComputedStyle(this.gridContainer).gridTemplateRows.split(' ').length;
-        this.cells = Array(this.height, this.width).fill(false);
+        this.cells = Array(this.height * this.width).fill(false);
     }
 
     fillCell(x, y) {
-        this.cells[x + y * this.width] = true
+        this.cells[x + y * this.width] = true;
+    }
+
+    emptyCell(x, y) {
+        this.cells[x + y * this.width] = false;
     }
 
     checkCollision(x, y) {
         // check against bounds of the grid
         if(x < 0 || x >= this.width || y < 0 || y >= this.height){
-            return true
+            return true;
         }
         // check against cells
         if(this.cells[x + y * this.width]){
-            return true
+            return true;
         }
-        return false
+        return false;
+    }
+
+    isRowFull(rowIndex) {
+        const rowCells = this.cells.slice(rowIndex * this.width, (rowIndex + 1) * this.width);
+        return rowCells.every(x => x === true);
+    }
+
+    removeRows(rows){
+        rows = toUniqueArray(rows)
+        rows.sort()
+        for(let rowIndex of rows){
+            this.removeRow(rowIndex)
+        }
+    }
+
+    removeRow(rowIndex){
+        this.cells.slice(0, rowIndex * this.width)
     }
 }
 
@@ -136,16 +157,16 @@ class TetrominoContainer {
     }
 
     rotate(delta){
-        const n = this.tetrominoData.positions.length
+        const n = this.tetrominoData.positions.length;
         // mod a negative number is negative, this fixes that
-        this.rotation = (((this.rotation + delta) % n) + n) % n
+        this.rotation = (((this.rotation + delta) % n) + n) % n;
     }
 
-    *getCellPosition(){
-        for(i=0; i<4; i ++){
+    *yieldAbsoluteCellPositions(){
+        for(i=0; i<4; i++) {
             yield [
-                this.x + this.tetrominoData.positions[this.rotation][i][0],
-                this.x + this.tetrominoData.positions[this.rotation][i][1],
+                this.tetrominoData.positions[this.rotation][i][0] + this.x,
+                this.tetrominoData.positions[this.rotation][i][1] + this.y
             ];
         }
     }
@@ -161,12 +182,12 @@ function getRandomColor() {
 
 function init() {
     // the objects that define the state of the grid
-    activeTetrominoContainer = new TetrominoContainer(getRandomTetromino(), 5, 0, getRandomColor())
-    gameGrid = new GameGrid()
+    activeTetrominoContainer = new TetrominoContainer(getRandomTetromino(), 5, 0, getRandomColor());
+    gameGrid = new GameGrid();
 
     // make the grid reflect the initial conditions
-    const gameColumns = gameGrid.height
-    const gameRows = gameGrid.width
+    const gameColumns = gameGrid.height;
+    const gameRows = gameGrid.width;
 
     for(i=0; i < gameColumns * gameRows; i++) {
         const cell = document.createElement('div');
@@ -174,7 +195,7 @@ function init() {
         gameGrid.gridContainer.appendChild(cell);
     }
 
-    drawTetrominoContainer(gameGrid, activeTetrominoContainer)
+    drawTetrominoContainer(gameGrid, activeTetrominoContainer);
 
     // the objects that define the state of the next object grid
     const nextGrid = document.querySelector('.next-tetromino-grid-container');
@@ -192,26 +213,18 @@ function init() {
 }
 
 function drawTetrominoContainer(grid, tetrominoContainer) {
-    const gridDom = grid.gridContainer
-    const x = tetrominoContainer.x;
-    const y = tetrominoContainer.y;
-    for(i=0; i < 4; i++){
-        const u = tetrominoContainer.tetrominoData.positions[tetrominoContainer.rotation][i][0];
-        const v = tetrominoContainer.tetrominoData.positions[tetrominoContainer.rotation][i][1];
+    const gridDom = grid.gridContainer;
+    for(let pos of tetrominoContainer.yieldAbsoluteCellPositions()){
         const color = tetrominoContainer.color;
-        drawCell(x+u, y+v, gridDom, color);
+        drawCell(pos[0], pos[1], gridDom, color);
     }
 }
 
 function undrawTetrominoContainer(grid, tetrominoContainer) {
-    const gridDom = grid.gridContainer
-    const x = tetrominoContainer.x;
-    const y = tetrominoContainer.y;
-    for(i=0; i < 4; i++){
-        const u = tetrominoContainer.tetrominoData.positions[tetrominoContainer.rotation][i][0];
-        const v = tetrominoContainer.tetrominoData.positions[tetrominoContainer.rotation][i][1];
+    const gridDom = grid.gridContainer;
+    for(let pos of tetrominoContainer.yieldAbsoluteCellPositions()){
         const color = 'grey';
-        drawCell(x+u, y+v, gridDom, color);
+        drawCell(pos[0], pos[1], gridDom, color);
     }
 }
 
@@ -232,12 +245,8 @@ function drawCell(x, y, grid, color){
 }
 
 function hasCollision(tetrominoContainer, gameGrid){
-    const x = tetrominoContainer.x;
-    const y = tetrominoContainer.y;
-    for(i=0; i<4; i++) {
-        const u = tetrominoContainer.tetrominoData.positions[tetrominoContainer.rotation][i][0];
-        const v = tetrominoContainer.tetrominoData.positions[tetrominoContainer.rotation][i][1];
-        if(gameGrid.checkCollision(x+u, y+v)) {
+    for(let pos of tetrominoContainer.yieldAbsoluteCellPositions()){
+        if(gameGrid.checkCollision(pos[0], pos[1])) {
             return true
         }
     }
@@ -249,7 +258,7 @@ function fall(){
     if(hasCollision(activeTetrominoContainer, gameGrid)){
         activeTetrominoContainer.y -= 1
         fillGridCellsWithTetromino(activeTetrominoContainer, gameGrid)
-        // check for rows to remove
+        checkFullRows(activeTetrominoContainer, gameGrid)
         // check for end game
         activeTetrominoContainer = new TetrominoContainer(getRandomTetromino(), 5, 0, getRandomColor())
     } else {
@@ -258,6 +267,17 @@ function fall(){
         activeTetrominoContainer.y += 1
     }
     drawTetrominoContainer(gameGrid, activeTetrominoContainer)
+}
+
+function checkFullRows(activeTetrominoContainer, gameGrid){
+    let filledRows = []
+    for(let cell of activeTetrominoContainer.yieldAbsoluteCellPositions()){
+        let row = cell[1]
+        if(gameGrid.isRowFull(row)){
+            filledRows.appendChild(row)
+        }
+    }
+    gameGrid.removeRows(filledRows)
 }
 
 function xMove(delta){
@@ -285,12 +305,8 @@ function rotate(){
 }
 
 function fillGridCellsWithTetromino(tetrominoContainer, gameGrid){
-    const x = tetrominoContainer.x;
-    const y = tetrominoContainer.y;
-    for(i=0; i<4; i++) {
-        const u = tetrominoContainer.tetrominoData.positions[tetrominoContainer.rotation][i][0];
-        const v = tetrominoContainer.tetrominoData.positions[tetrominoContainer.rotation][i][1];
-        gameGrid.fillCell(x+u, y+v)
+    for(let pos of tetrominoContainer.yieldAbsoluteCellPositions()){
+        gameGrid.fillCell(pos[0], pos[1])
     }
 }
 
@@ -310,3 +326,15 @@ document.addEventListener('keydown', function(event) {
         xMove(1)
     }
 });
+
+
+function toUniqueArray(mArray){
+    // this is used on arrays of max len 4 so big O doesnt matter 
+    let output = []
+    for(let i of mArray){
+        if(!output.includes(i)){
+            output.push(i)
+        }
+    }
+    return output
+}
